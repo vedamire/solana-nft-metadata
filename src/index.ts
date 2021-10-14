@@ -249,29 +249,29 @@ MAX_CREATOR_LIMIT * MAX_CREATOR_LEN +
 
 async function getCreatorsMetadataTokens(creatorPubKey: PublicKey, {connection}: ApiDependencies) {
 
-  const allMetaAccount = await connection.getProgramAccounts(new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), {
-  filters: [
+  const allMetaAccounts326 = await connection.getProgramAccounts(new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), {
+    filters: [
       {
         memcmp: {
-          offset:
-            1 + // key
-            32 + // update auth
-            32 + // mint
-            4 + // name string length
-            MAX_NAME_LENGTH + // name
-            4 + // uri string length
-            MAX_URI_LENGTH + // uri
-            4 + // symbol string length
-            MAX_SYMBOL_LENGTH + // symbol
-            2 + // seller fee basis points
-            1 + // whether or not there is a creators vec
-            4 + // creators vec length
-            0 * MAX_CREATOR_LEN,
-          bytes: creatorPubKey.toBase58(),
+          offset: 326,
+          bytes: new PublicKey(creatorPubKey).toBase58(),
+        },
+      },
+    ],
+  })
+
+  const allMetaAccounts360 = await connection.getProgramAccounts(new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), {
+    filters: [
+      {
+        memcmp: {
+          offset: 360,
+          bytes: new PublicKey(creatorPubKey).toBase58(),
         },
       },
     ],
 })
+
+const allMetaAccount = allMetaAccounts326.concat(allMetaAccounts360)
 
   const parsedObj = { metadataByMint: [], editions: [], masterEditions: [],
      masterEditionsByPrintingMint: [], masterEditionsByOneTimeAuthMint: [] }
