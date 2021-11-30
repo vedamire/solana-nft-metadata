@@ -111,11 +111,17 @@ async function getTokenAddressFromMintAndUser(userAddress: String, mintAddress: 
 }
 
 function decodedTokenBuffersToUI(decodedTokenState, tokenAddress: PublicKey): TokenView {
+  let amountNum = -1
+  try {
+    amountNum = new BN(decodedTokenState.amount, 10, 'le').toNumber()
+  } catch(err) {}
+  
   return {
     tokenAccountPubkey: tokenAddress.toBase58(),
     mint: new PublicKey(decodedTokenState.mint).toBase58(),
     owner: new PublicKey(decodedTokenState.owner).toBase58(),
-    amount: new BN(decodedTokenState.amount, 10, 'le').toNumber(),
+    amount: amountNum,
+    amountBN: new BN(decodedTokenState.amount, 10, 'le'),
     delegateOption: !!decodedTokenState.delegateOption,
     delegate: new PublicKey(decodedTokenState.delegate).toBase58(),
     state: !!decodedTokenState.state,
@@ -127,6 +133,21 @@ function decodedTokenBuffersToUI(decodedTokenState, tokenAddress: PublicKey): To
   };
 }
 
+
+async function getAllUserTokenAccounts(
+  userPublicKey: PublicKey,
+  { connection }: ApiDependencies,
+): Promise<TokenView[]> {
+  const tokenAccounts = (
+    await connection.getTokenAccountsByOwner(userPublicKey, { programId: TOKEN_PROGRAM_ID }, 'singleGossip')
+  ).value;
+  const parsedAddresses = tokenAccounts.map((tokenAccount) =>
+    decodedTokenBuffersToUI(AccountLayout.decode(tokenAccount.account.data), tokenAccount.pubkey),
+  )
+
+  return parsedAddresses;
+}
+
 async function getAllUserTokens(
   userPublicKey: PublicKey,
   { connection }: ApiDependencies,
@@ -136,7 +157,7 @@ async function getAllUserTokens(
   ).value;
   const parsedAddresses = tokenAccounts.map((tokenAccount) =>
     decodedTokenBuffersToUI(AccountLayout.decode(tokenAccount.account.data), tokenAccount.pubkey),
-  ).filter(token => token.amount > 0);
+  ).filter(token => token.amount !== 0);
 
 
   return parsedAddresses;
@@ -287,6 +308,28 @@ const allMetaAccount = allMetaAccounts326.concat(allMetaAccounts360)
 }
 
 
+async function getCreatorsMetadataTokensAll({connection}: ApiDependencies) {
+
+  const allMetaAccounts326 = await connection.getProgramAccounts(new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), )
+
+  const allMetaAccounts360 = await connection.getProgramAccounts(new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), )
+
+  const allMetaAccount = allMetaAccounts326.concat(allMetaAccounts360)
+
+  const parsedObj = { metadataByMint: [], editions: [], masterEditions: [],
+     masterEditionsByPrintingMint: [], masterEditionsByOneTimeAuthMint: [] }
+  for(let account of allMetaAccount) {
+    processMetaData(account, parsedObj)
+  }
+
+
+  const filteredMetas = parsedObj.metadataByMint
+  // .filter(metaAccount => metaAccount.account.info &&  metaAccount.account.info.updateAuthority.toBase58() == creatorPubKey.toBase58())
+
+  return filteredMetas
+}
+
+
 async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMintAddress: PublicKey): Promise<PublicKey> {
   return (
     await PublicKey.findProgramAddress(
@@ -303,6 +346,7 @@ interface TokenView {
   mint: String;
   owner: String;
   amount: Number;
+  amountBN: typeof BN,
   delegateOption: boolean;
   delegate: String;
   state: boolean;
@@ -325,6 +369,7 @@ interface ArweaveFile {
 
 export {
   getAllUserTokens,
+  getAllUserTokenAccounts,
   getTokenAddressFromMintAndUser,
   readKeypairFromPath,
   getLargestTokenAccountOwnerByMint,
@@ -333,6 +378,7 @@ export {
   uploadFileToArweave,
 
   getCreatorsMetadataTokens,
+  getCreatorsMetadataTokensAll,
   createMasterEdition,
   updateMetadata,
   createMetadata,
