@@ -4,7 +4,9 @@ import { getAllUserTokenAccounts, getCreatorsMetadataTokens, getCreatorsMetadata
    PublicKey,
 
  } from '@solana/web3.js';
+import { getMetadata } from './../getArweaveMetadata/lib';
 
+// import * as frKtStaking from '@frakters/frkt-staking-library'
  jest.setTimeout(2000000000) 
  
 test('Examples', async () => {
@@ -17,7 +19,10 @@ test('Examples', async () => {
 
     // console.log(tokens.filter(token => token.amount == 0))
 
-    const metas = await getCreatorsMetadataTokensAll({connection})
+    // const metas = await getCreatorsMetadataTokensAll({connection})
 
-    console.log(metas)
+    // console.log(metas)
+    // const meta = await getMetadata(new PublicKey('5ovnCT8vbaNj7QhKrGPJhczmrWqSMbv2Yn5t9Yx5GTYq'), 'https://api.mainnet-beta.solana.com')
+    // console.log('meta: ', meta)
+  // console.log(frKtStaking.getAllProgramAccounts())
 });

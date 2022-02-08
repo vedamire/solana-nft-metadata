@@ -17,9 +17,11 @@ import {
   Token,
   TOKEN_PROGRAM_ID,
   AccountInfo,
+  u64,
 } from '@solana/spl-token';
 // import urlExist from "url-exist"
 import urlExistsRaw from "url-exists"
+import { getMetadata } from './getArweaveMetadata/lib';
 
 // const urlExist = require('url-exist')
 
@@ -339,6 +341,81 @@ async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMintAdd
   )[0];
 }
 
+async function getMetadataByMintAddress(mintPubkey: PublicKey, clusterEndpoint: string) {
+  return getMetadata(mintPubkey, clusterEndpoint)
+}
+
+function makeSeed(length) {
+  var result: string[] = [];
+  var characters: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var charactersLength = characters.length;
+  for (var i = 0; i < length; i++) {
+    result.push(characters.charAt(Math.floor(Math.random() * charactersLength)));
+  }
+  return result.join('');
+}
+
+export async function createAndMintSomeTokens(
+  amountToMint: number | u64,
+  decimals: number,
+  userPublicKey: PublicKey,
+  sendTxn: (transaction: Transaction) => Promise<void>,
+  { connection }: ApiDependencies,
+) {
+  const mintSeed = makeSeed(8);
+  const mintAddress = await PublicKey.createWithSeed(userPublicKey, mintSeed, TOKEN_PROGRAM_ID);
+  const createMintAccountIx = SystemProgram.createAccountWithSeed({
+    fromPubkey: userPublicKey,
+    basePubkey: userPublicKey,
+    seed: mintSeed,
+    newAccountPubkey: mintAddress,
+    space: MintLayout.span,
+    lamports: await connection.getMinimumBalanceForRentExemption(AccountLayout.span),
+    programId: TOKEN_PROGRAM_ID,
+  });
+
+  // const associatedTokenAddress = await Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mintAddress,
+  //    userPublicKey)
+  const initializeMintIx = Token.createInitMintInstruction(
+    TOKEN_PROGRAM_ID,
+    mintAddress,
+    decimals,
+    userPublicKey,
+    null,
+  );
+
+  const tokenAccAddress = await findAssociatedTokenAddress(userPublicKey, mintAddress);
+
+  const createAssociatedTokenAccountIx = Token.createAssociatedTokenAccountInstruction(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    mintAddress,
+    tokenAccAddress,
+    userPublicKey,
+    userPublicKey,
+  );
+
+  const mintToIx = Token.createMintToInstruction(
+    TOKEN_PROGRAM_ID,
+    mintAddress,
+    tokenAccAddress,
+    userPublicKey,
+    [],
+    amountToMint,
+  );
+
+  const transaction = new Transaction().add(
+    createMintAccountIx,
+    initializeMintIx,
+    createAssociatedTokenAccountIx,
+    mintToIx,
+  );
+
+  void (await sendTxn(transaction));
+
+  return { mintAddress: mintAddress.toBase58(), tokenAccAddress: tokenAccAddress.toBase58(), mintSeed };
+}
+
 
 
 interface TokenView {
@@ -368,6 +445,7 @@ interface ArweaveFile {
 }
 
 export {
+  getMetadataByMintAddress,
   getAllUserTokens,
   getAllUserTokenAccounts,
   getTokenAddressFromMintAndUser,
